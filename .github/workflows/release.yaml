@@ -4,9 +4,6 @@ on:
   push:
     tags: ["v*"]
 
-env:
-  MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-
 jobs:
   validate-release-tag:
     name: Validate git tag
@@ -14,15 +11,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: compare git tag with cargo metadata
-        working-directory: object-store/
-        run: |
-          PUSHED_TAG=${GITHUB_REF##*/}
-          CURR_VER=$( grep version Cargo.toml | head -n 1 | awk '{print $3}' | tr -d '"' )
-          if [[ "${PUSHED_TAG}" != "v${CURR_VER}" ]]; then
-            echo "Cargo metadata has version set to ${CURR_VER}, but got pushed tag ${PUSHED_TAG}."
-            exit 1
-          fi
 
   release-pypi-mac:
     needs: validate-release-tag
@@ -46,8 +34,11 @@ jobs:
         name: Publish to pypi (without sdist)
         with:
           target: ${{ matrix.target }}
-          command: publish
-          args: -m object-store/Cargo.toml --no-sdist
+          command: build
+          args: -m object-store/Cargo.toml --no-sdist --release
+      - uses: actions/upload-artifact@v4
+        with:
+          path: target/wheels/*.whl
 
   release-pypi-mac-universal2:
     needs: validate-release-tag
@@ -66,8 +57,11 @@ jobs:
         name: Publish to pypi (without sdist)
         with:
           target: ${{ matrix.target }}
-          command: publish
-          args: -m object-store/Cargo.toml --no-sdist --universal2
+          command: build
+          args: -m object-store/Cargo.toml --no-sdist --universal2  --release
+      - uses: actions/upload-artifact@v4
+        with:
+          path: target/wheels/*.whl
 
   release-pypi-windows:
     needs: validate-release-tag
@@ -86,8 +80,8 @@ jobs:
         name: Publish to pypi (without sdist)
         with:
           target: x86_64-pc-windows-msvc
-          command: publish
-          args: -m object-store/Cargo.toml --no-sdist
+          command: build
+          args: -m object-store/Cargo.toml --no-sdist  --release
 
   release-pypi-manylinux:
     needs: validate-release-tag
@@ -106,12 +100,18 @@ jobs:
         name: Publish manylinux to pypi x86_64 (with sdist)
         with:
           target: x86_64-unknown-linux-gnu
-          command: publish
-          args: -m object-store/Cargo.toml
+          command: build
+          args: -m object-store/Cargo.toml  --release
+      - uses: actions/upload-artifact@v4
+        with:
+          path: target/wheels/*.whl
 
       - uses: PyO3/maturin-action@v1
         name: Publish manylinux to pypi aarch64 (without sdist)
         with:
           target: aarch64-unknown-linux-gnu
-          command: publish
-          args: -m object-store/Cargo.toml --no-sdist
+          command: build
+          args: -m object-store/Cargo.toml --no-sdist  --release
+      - uses: actions/upload-artifact@v4
+        with:
+          path: target/wheels/*.whl
